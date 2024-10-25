@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Horizon</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"> <!-- Retro Font -->
+  <style>
+    body {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #000;
+      font-family: 'Press Start 2P', cursive; /* Retro pixel font */
+      color: #fff;
+      overflow: hidden;
+      margin: 0;
+    }
+    
+    .landing {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .title {
+      font-size: 4rem;
+      color: #00ff99;
+      text-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99, 0 0 30px #00ff99, 0 0 40px #ff33ff;
+      animation: flicker 2s infinite alternate;
+    }
+    
+    .subtitle {
+      font-size: 1.2rem;
+      margin: 20px 0;
+      color: #ff33ff;
+      text-shadow: 0 0 10px #ff33ff, 0 0 20px #ff33ff;
+    }
+    
+    .glow-button {
+      padding: 15px 40px;
+      border: 2px solid #00ff99;
+      background-color: #000;
+      color: #fff;
+      text-transform: uppercase;
+      font-size: 1.2rem;
+      cursor: pointer;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+      transition: transform 0.3s, box-shadow 0.3s;
+      animation: glow 2s infinite alternate;
+    }
+    
+    .glow-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px #00ff99, 0 0 30px #00ff99, 0 0 40px #00ff99;
+    }
+    
+    .space-girl {
+      width: 300px;
+      margin: 20px auto;
+      display: block;
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes glow {
+      0% {
+        box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99, 0 0 30px #00ff99;
+      }
+      100% {
+        box-shadow: 0 0 20px #ff33ff, 0 0 40px #ff33ff, 0 0 60px #ff33ff;
+      }
+    }
+    
+    @keyframes flicker {
+      0% {
+        opacity: 0.8;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+
+    .retro-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(0,0,0,0.8) 20%, rgba(255,255,255,0) 70%);
+      background-size: 15px 15px;
+      background-image: linear-gradient(to right, #333 1px, transparent 1px),
+                        linear-gradient(to bottom, #333 1px, transparent 1px);
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="landing">
+    <h1 class="title">Event Horizon</h1>
+    <img src="images/space_girl.png" alt="Space Girl" class="space-girl">
+    <button class="glow-button" id="playButton">Go</button>
+  </div>
+  
+  <div class="retro-grid"></div>
+
+  <script>
+    document.getElementById('playButton').addEventListener('click', () => {
+      window.location.href = 'lobby.html';
+    });
+  </script>
+</body>
+</html>
