@@ -1,76 +1,76 @@
+const rooms = {}; // Store room data
+
 module.exports = function(io) {
-    let rooms = {};
-  
     io.on('connection', (socket) => {
-      console.log(`Player connected: ${socket.id}`);
-  
-      socket.on('joinRoom', ({ playerName, roomName }) => {
-        socket.join(roomName);
-        
-        if (!rooms[roomName]) {
-          rooms[roomName] = {};
-        }
+        console.log(`Player connected: ${socket.id}`, rooms);
 
-        // Ensure the initial position is within the bounds of the map
-        const initialX = Math.floor(Math.random() * 3200); // Adjust based on map size
-        const initialY = Math.floor(Math.random() * 3200); // Adjust based on map size
+        // Handle the joinRoom event
+        socket.on('joinRoom', ({ playerName, roomName }) => {
+            if (!rooms[roomName]) {
+                rooms[roomName] = {}; // Initialize the room if it doesn't exist
+            }
 
-  
-        rooms[roomName][socket.id] = {
-          playerName,
-          rotation: 0,
-          x: initialX,
-          y: initialY,
-          playerId: socket.id,
-          health: 100
-        };
-  
-        socket.emit('currentPlayers', rooms[roomName]);
-        socket.to(roomName).emit('newPlayer', rooms[roomName][socket.id]);
-      });
+            // Add the player to the room
+            rooms[roomName][socket.id] = {
+                playerName: playerName,
+                socketId: socket.id,
+                // Additional player-specific data can be added here
+            };
 
-      socket.on('playerMovement', ({ roomName, x, y, rotation }) => {
-        if (rooms[roomName] && rooms[roomName][socket.id]) {
-          const player = rooms[roomName][socket.id];
-          player.x = x;
-          player.y = y;
-          player.rotation = rotation;
-          socket.to(roomName).emit('playerMoved', player);
-          console.log('Player movement broadcasted:', player);
-        }
-      });
-  
-      socket.on('shootBullet', ({ roomName, bulletData }) => {
-        console.log("bullet details=======>>", roomName,bulletData)  
-        if (rooms[roomName] && rooms[roomName][socket.id]) {
-          console.log("bullet details=======>>", roomName,bulletData)  
-          socket.to(roomName).emit('newBullet', bulletData);
-        }
-      });
-  
-      socket.on('playerHit', ({ roomName, playerId }) => {
-        if (rooms[roomName] && rooms[roomName][playerId]) {
-          const player = rooms[roomName][playerId];
-          player.health -= 10; // Reduce player health
-          console.log(`Player ${playerId} hit. Health: ${player.health}`);
-          if (player.health <= 0) {
-            delete rooms[roomName][playerId];
-            io.in(roomName).emit('playerDied', playerId);
-          } else {
-            io.in(roomName).emit('updateHealth', { playerId, health: player.health });
-          }
-        }
-      });
-  
-      socket.on('disconnect-player', () => {
-        console.log(`Player disconnected: ${socket.id}`);
-        for (const roomName in rooms) {
-          if (rooms[roomName][socket.id]) {
-            delete rooms[roomName][socket.id];
-            socket.to(roomName).emit('disconnect', socket.id);
-          }
-        }
-      });
+            socket.join(roomName);
+            console.log(`Player ${playerName} joined room: ${roomName}`);
+
+            // Notify other players in the room of the updated player list
+            const players = Object.values(rooms[roomName]).map(player => player.playerName);
+            io.to(roomName).emit('updatePlayerList', players);
+        });
+
+        // Handle the reconnectPlayer event
+        socket.on('reconnectPlayer', ({ playerName, roomName }) => {
+            if (rooms[roomName] && rooms[roomName][socket.id]) {
+                console.log(`Player ${playerName} already in room ${roomName}, reconnecting...`);
+                // Rejoin the room with existing data
+                socket.join(roomName);
+            } else {
+                console.log(`Player ${playerName} not found in room ${roomName}, adding to room...`);
+                // If the player wasn't found, they might need to be reassigned
+                rooms[roomName] = rooms[roomName] || {};
+                rooms[roomName][socket.id] = {
+                    playerName: playerName,
+                    socketId: socket.id,
+                };
+                socket.join(roomName);
+            }
+
+            // Notify the updated player list
+            const players = Object.values(rooms[roomName]).map(player => player.playerName);
+            io.to(roomName).emit('updatePlayerList', players);
+        });
+
+        // Handle disconnect event
+        socket.on('disconnect', () => {
+            console.log(`Player disconnected: ${socket.id}`);
+
+            // Find and remove the player from their room
+            for (let roomName in rooms) {
+                if (rooms[roomName][socket.id]) {
+                    const playerName = rooms[roomName][socket.id].playerName;
+                    delete rooms[roomName][socket.id];
+
+                    // Notify other players in the room of the updated player list
+                    const players = Object.values(rooms[roomName]).map(player => player.playerName);
+                    io.to(roomName).emit('updatePlayerList', players);
+
+                    console.log(`Player ${playerName} disconnected from room: ${roomName}`);
+
+                    // Optionally delete the room if it's empty
+                    if (Object.keys(rooms[roomName]).length === 0) {
+                        delete rooms[roomName];
+                        console.log(`Room ${roomName} is now empty and deleted.`);
+                    }
+                    break;
+                }
+            }
+        });
     });
-  };
-  
+};

@@ -1,143 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Lobby</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"> <!-- Retro Font -->
-    <style>
-        body {
-            font-family: 'Press Start 2P', cursive;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #000;
-            color: #fff;
-            margin: 0;
-            overflow: hidden;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lobby - Event Horizon: Outlaws</title>
+  <!-- <link rel="stylesheet" href="styles.css"> -->
+  <style>
+    /* Lobby Page Styles */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      font-family: 'Arial', sans-serif;
+      color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-        #lobby-container {
-            text-align: center;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 30px;
-            border: 2px solid #00ff99;
-            border-radius: 10px;
-            box-shadow: 0 0 20px #00ff99, 0 0 40px #ff33ff;
-            position: relative;
-            z-index: 2;
-        }
+    #lobby-container {
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.5);
+    }
 
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: #00ff99;
-            text-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
-        }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 0.5em;
+      color: #FF9800;
+      letter-spacing: 1px;
+    }
 
-        form {
-            display: flex;
-            flex-direction: column;
-        }
+    #room-info {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      background-color: #333;
+      padding: 10px;
+      border-radius: 5px;
+      color: #FF9800;
+    }
 
-        label {
-            margin-bottom: 5px;
-            font-size: 1rem;
-            color: #ff33ff;
-            text-shadow: 0 0 10px #ff33ff;
-        }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
 
-        input[type="text"] {
-            padding: 10px;
-            margin-bottom: 15px;
-            border: none;
-            border-bottom: 2px solid #00ff99;
-            background-color: transparent;
-            color: #fff;
-            font-size: 1rem;
-            width: 100%;
-            text-align: center;
-        }
+    #player-list li {
+      background-color: #1a1a1a;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      font-size: 1.1em;
+      color: #f0f0f0;
+      text-align: left;
+    }
 
-        input[type="text"]:focus {
-            outline: none;
-            border-bottom: 2px solid #ff33ff;
-        }
+    button {
+      background-color: #FF5722;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 20px;
+    }
 
-        button {
-            padding: 10px 20px;
-            font-size: 1.2rem;
-            background-color: #000;
-            color: #fff;
-            border: 2px solid #00ff99;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: transform 0.3s, box-shadow 0.3s;
-            animation: glow 2s infinite alternate;
-        }
+    button:hover {
+      background-color: #E64A19;
+    }
 
-        button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px #00ff99, 0 0 30px #00ff99, 0 0 40px #00ff99;
-        }
+    /* Responsive Design */
+    @media (max-width: 600px) {
+      #lobby-container {
+        width: 90%;
+        padding: 10px;
+      }
 
-        @keyframes glow {
-            0% {
-                box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99, 0 0 30px #00ff99;
-            }
-            100% {
-                box-shadow: 0 0 20px #ff33ff, 0 0 40px #ff33ff, 0 0 60px #ff33ff;
-            }
-        }
+      h1 {
+        font-size: 2em;
+      }
 
-        .retro-grid {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: 15px 15px;
-            background-image: linear-gradient(to right, #333 1px, transparent 1px),
-                              linear-gradient(to bottom, #333 1px, transparent 1px);
-            z-index: 1;
-        }
-
-        @media (max-width: 600px) {
-            #lobby-container {
-                width: 90%;
-            }
-
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            input[type="text"] {
-                font-size: 0.9rem;
-            }
-
-            button {
-                font-size: 1rem;
-            }
-        }
-    </style>
-    <!-- <script src="/socket.io/socket.io.js"></script> -->
-    <!-- <script src="js/lobby.js"></script> -->
+      button {
+        font-size: 1em;
+        padding: 8px 15px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div id="lobby-container">
-        <h1>Join a Room</h1>
-        <form id="join-form" action="/join-room" method="POST">
-            <label for="player-name">Player Name:</label>
-            <input type="text" id="player-name" name="playerName" required>
-            
-            <label for="room-name">Room Name:</label>
-            <input type="text" id="room-name" name="roomName" required>
+  <div id="lobby-container">
+    <h1>Waiting for Players</h1>
+    
+    <!-- Display room and player info -->
+    <p id="room-info"></p>
+    
+    <!-- Player list will be updated dynamically -->
+    <h2>Players in Lobby</h2>
+    <ul id="player-list"></ul>
+    
+    <!-- Exit button -->
+    <button id="exit-lobby-btn">Exit Lobby</button>
+  </div>
 
-            <button type="submit">Join Room</button>
-        </form>
-    </div>
-  
-    <div class="retro-grid"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/lobby.js"></script>
 </body>
 </html>
