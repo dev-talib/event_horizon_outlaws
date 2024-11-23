@@ -1,76 +1,102 @@
 module.exports = function(io) {
-    let rooms = {};
-  
+    // A simple store for lobbies, now tracking players by their socket IDs
+    let lobbies = {};
+
+    // Utility to generate a random lobby code
+    function generateLobbyCode() {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
     io.on('connection', (socket) => {
-      console.log(`Player connected: ${socket.id}`);
-  
-      socket.on('joinRoom', ({ playerName, roomName }) => {
-        socket.join(roomName);
-        
-        if (!rooms[roomName]) {
-          rooms[roomName] = {};
-        }
+        console.log('A user connected:', socket.id);
 
-        // Ensure the initial position is within the bounds of the map
-        const initialX = Math.floor(Math.random() * 3200); // Adjust based on map size
-        const initialY = Math.floor(Math.random() * 3200); // Adjust based on map size
+        // Event: Player joins a lobby
+        socket.on('joinLobby', ({ username, lobbyCode }) => {
+            console.log("EVENT JOIN LOBBY");
+            let lobby;
 
-  
-        rooms[roomName][socket.id] = {
-          playerName,
-          rotation: 0,
-          x: initialX,
-          y: initialY,
-          playerId: socket.id,
-          health: 100
-        };
-  
-        socket.emit('currentPlayers', rooms[roomName]);
-        socket.to(roomName).emit('newPlayer', rooms[roomName][socket.id]);
-      });
+            // If a lobby code is provided, join that lobby; otherwise, create a new one
+            if (lobbyCode && lobbies[lobbyCode]) {
+                lobby = lobbies[lobbyCode];
+            } else {
+                // Create a new lobby if no code is provided
+                if (!lobbyCode) {
+                    lobbyCode = generateLobbyCode();
+                }
+                lobby = { code: lobbyCode, players: [], state: 'lobby' };
+                lobbies[lobbyCode] = lobby;
+            }
 
-      socket.on('playerMovement', ({ roomName, x, y, rotation }) => {
-        if (rooms[roomName] && rooms[roomName][socket.id]) {
-          const player = rooms[roomName][socket.id];
-          player.x = x;
-          player.y = y;
-          player.rotation = rotation;
-          socket.to(roomName).emit('playerMoved', player);
-          console.log('Player movement broadcasted:', player);
-        }
-      });
-  
-      socket.on('shootBullet', ({ roomName, bulletData }) => {
-        console.log("bullet details=======>>", roomName,bulletData)  
-        if (rooms[roomName] && rooms[roomName][socket.id]) {
-          console.log("bullet details=======>>", roomName,bulletData)  
-          socket.to(roomName).emit('newBullet', bulletData);
-        }
-      });
-  
-      socket.on('playerHit', ({ roomName, playerId }) => {
-        if (rooms[roomName] && rooms[roomName][playerId]) {
-          const player = rooms[roomName][playerId];
-          player.health -= 10; // Reduce player health
-          console.log(`Player ${playerId} hit. Health: ${player.health}`);
-          if (player.health <= 0) {
-            delete rooms[roomName][playerId];
-            io.in(roomName).emit('playerDied', playerId);
-          } else {
-            io.in(roomName).emit('updateHealth', { playerId, health: player.health });
-          }
-        }
-      });
-  
-      socket.on('disconnect-player', () => {
-        console.log(`Player disconnected: ${socket.id}`);
-        for (const roomName in rooms) {
-          if (rooms[roomName][socket.id]) {
-            delete rooms[roomName][socket.id];
-            socket.to(roomName).emit('disconnect', socket.id);
-          }
-        }
-      });
+            // Ensure no duplicate players in the same lobby
+            if (lobby.players.some(player => player.username === username)) {
+                socket.emit('lobbyJoined', { success: false, message: 'Username already taken in this lobby.' });
+                return;
+            }
+
+            // Add the player to the lobby, tracking their socketId, username, and lobbyCode
+            lobby.players.push({ username, socketId: socket.id });
+
+            // Add the player to the room (lobbyCode)
+            socket.join(lobbyCode);
+
+            // Emit a success response to the player who joined
+            io.to(socket.id).emit('lobbyJoined', { success: true, lobbyCode });
+
+            // Notify all players in the lobby about the updated player list
+            console.log("lobbyCode", lobbyCode)
+            io.to(lobbyCode).emit('lobbyUpdate', lobby.players); // This sends to all in the lobby, including the sender
+
+            // Print the current lobby state for debugging
+            console.log("***lobby details***", lobbies);
+
+            // Listen for startGame event
+            socket.on('startGame', () => {
+                if (lobby.players.length > 1) {
+                    // Emit a game start message to players in the lobby
+                    io.to(lobbyCode).emit('gameStart', { message: 'Game is starting!' });
+                } else {
+                    io.to(socket.id).emit('gameStartError', { message: 'Not enough players to start the game.' });
+                }
+            });
+
+            // Handle player disconnection
+            socket.on('disconnect', () => {
+                console.log('A user disconnected:', socket.id);
+                // Remove player from the lobby
+                lobby.players = lobby.players.filter(player => player.socketId !== socket.id);
+
+                // If no players remain in the lobby, delete the lobby
+                if (lobby.players.length === 0) {
+                    delete lobbies[lobbyCode];
+                } else {
+                    // Emit updated player list to remaining players in the lobby
+                    io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
+                }
+            });
+        });
+
+        // Event: Load lobby details (based on socket.id)
+        socket.on('loadLobbyDetails', () => {
+            let playerLobby = null;
+            let playerUsername = null;
+
+            for (let lobbyCode in lobbies) {
+                let lobby = lobbies[lobbyCode];
+                let player = lobby.players.find(p => p.socketId === socket.id);
+                if (player) {
+                    playerUsername = player.username;
+                    playerLobby = lobbyCode;
+                    break;
+                }
+            }
+
+            if (playerUsername && playerLobby) {
+                io.to(socket.id).emit('lobbyDetails', { success: true, lobbyCode: playerLobby, username: playerUsername });
+                // Notify all players in the lobby about the updated player list
+                io.to(playerLobby).emit('lobbyUpdate', lobbies[playerLobby].players);
+            } else {
+                io.to(socket.id).emit('gameStartError', { message: 'Player not found in any lobby.' });
+            }
+        });
     });
-  };
-  
+};
