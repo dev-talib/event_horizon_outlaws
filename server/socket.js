@@ -47,7 +47,6 @@ module.exports = function(io) {
             // Save the player state on the server (username and their current lobby)
             socket.join(lobbyCode);
 
-            console.log("*** going to store data in session ****",username, lobbyCode)
             // Save the username and lobbyCode in the session
             socket.request.session.username = username;
             socket.request.session.lobbyCode = lobbyCode; // Ensure lobbyCode is correctly set
@@ -60,9 +59,7 @@ module.exports = function(io) {
             io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
 
             // Check if there are more than 2 players in the lobby and start the game
-            console.log('lobby.players.length',lobby.players, lobby.players.length);
-            console.log('**************************lobby player length***********************',lobby.players.length)
-            if (lobby.players.length > 0) {
+            if (lobby.players.length > 1) {
               console.log('***gameStart EVENT to frontend***')
               // Emit a 'startGame' event to all players in the lobby
               setTimeout(() => {
@@ -104,12 +101,10 @@ module.exports = function(io) {
                 // Find the player in the lobby by normalized username
                 const player = lobby.players.find(player => {
                     const normalizedPlayerUsername = player.username.trim().toLowerCase();
-                    console.log(`Comparing: ${normalizedPlayerUsername} === ${normalizedUsername}`);
                     return normalizedPlayerUsername === normalizedUsername;
                 });
         
                 if (player) {
-                    console.log("***inside method loadLobbyDetails *** player found: ", lobbyCode, username);
                     // Emit the current lobby details (lobby code, player info)
                     io.to(socket.id).emit('lobbyDetails', {
                         success: true,
@@ -134,33 +129,42 @@ module.exports = function(io) {
         });
         
 
-        socket.on('reconnect', () => {
-            const { lobbyCode, username } = socket.request.session;
-            console.log("reconnecting....", lobbyCode, username);
-            if (lobbyCode && lobbies[lobbyCode]) {
-                const lobby = lobbies[lobbyCode];
-                const player = lobby.players.find(player => player.username === username);
-                if (player) {
-                    // Emit the current lobby details to the reconnected player
-                    io.to(socket.id).emit('lobbyDetails', {
-                        success: true,
-                        lobbyCode,
-                        username,
-                        players: lobby.players
-                    });
-                } else {
-                    io.to(socket.id).emit('lobbyDetails', {
-                        success: false,
-                        message: 'Player not found in the lobby.'
-                    });
-                }
-            } else {
-                io.to(socket.id).emit('lobbyDetails', {
-                    success: false,
-                    message: 'No lobby found or user not connected to any lobby.'
-                });
+        socket.on('spawnPlayer', ({ playerName, roomName }) => {
+            socket.join(roomName);
+        
+            if (!lobbies[roomName]) {
+                lobbies[roomName] = {};
             }
+        
+            // Ensure the initial position is within the bounds of the map
+            const initialX = Math.floor(Math.random() * 3200); // Adjust based on map size
+            const initialY = Math.floor(Math.random() * 3200); // Adjust based on map size
+        
+            lobbies[roomName][socket.id] = {
+                playerName,
+                rotation: 0,
+                x: initialX,
+                y: initialY,
+                playerId: socket.id,
+                health: 100
+            };
+        
+            socket.emit('loadCurrentPlayers', lobbies[roomName]);
+            socket.to(roomName).emit('spawnNewPlayerInstance', lobbies[roomName][socket.id]);
         });
 
+        
+        socket.on('playerMovement', ({ roomName, x, y, rotation }) => {
+            if (lobbies[roomName] && lobbies[roomName][socket.id]) {
+              const player = lobbies[roomName][socket.id];
+              player.x = x;
+              player.y = y;
+              player.rotation = rotation;
+              socket.to(roomName).emit('syncPlayerMovement', player);
+            }
+        });
+        
+
     });
+
 };

@@ -82,6 +82,7 @@ socket.on('lobbyDetails', (data) => {
         console.log('Reconnected to lobby:', data.lobbyCode);
         displayLobbyDetails(data);  // Implement this to update the UI
         updatePlayerList(data.players);
+        sessionStorage.setItem('lobbyDetails', JSON.stringify(data));
     } else {
         console.error('Failed to load lobby details:', data.message);
     }

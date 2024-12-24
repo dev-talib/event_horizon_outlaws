@@ -21,12 +21,14 @@ var config = {
 var game = new Phaser.Game(config);
 
 // global variable
- 
+var player, otherPlayers; 
 var zone, initialRadius, shrinkRate, minZoneRadius, zoneCenter;
 var zoneGraphics;
 
 var background;
 var steroids;
+
+var cursors, fireKey;
 
 // Preload method: Used for loading game assets
 function preload() {
@@ -60,13 +62,62 @@ function create(){
   // Create the black hole in the center
   drawBlackHole(this, zoneCenter.x, zoneCenter.y, 65, 8);
 
+  
+  cursors = this.input.keyboard.createCursorKeys();
+  fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+  startGame(this);
+
+  // Update world bounds
+  this.physics.world.setBounds(0, 0, 3200, 3200); // Adjust based on map size
+  this.cameras.main.setBounds(0, 0, 3200, 3200);
+
 
 }
 
 // Update method: Runs every frame to update game objects (like movement, collision detection, etc.)
 function update(){
+  const lobbyDetailsString = sessionStorage.getItem('lobbyDetails');
+  const lobbyDetails = JSON.parse(lobbyDetailsString);
+  // Access properties of the parsed object
+  const roomName = lobbyDetails?.lobbyCode;
+ 
+  // handle player movement and emit it for server
+  handlePlayerMovement(this,roomName);
+
    
 }
+
+
+function startGame(scene) {
+  // Retrieve and parse the lobbyDetails object from sessionStorage
+  const lobbyDetailsString = sessionStorage.getItem('lobbyDetails');
+  const lobbyDetails = JSON.parse(lobbyDetailsString);
+
+  // Access properties of the parsed object
+  const roomName = lobbyDetails?.lobbyCode;
+  const playerName = lobbyDetails?.username;
+
+  otherPlayers = scene.physics.add.group();
+
+  socket.emit('spawnPlayer', { playerName, roomName });
+
+  socket.on('loadCurrentPlayers', (players) => {
+    Object.keys(players).forEach((id) => {
+      if (players[id].playerId === socket.id) {
+        player = createPlayerInstance(scene, players[id]);
+      } else {
+        createOtherPlayerInstance(scene, players[id]);
+      }
+    });
+  });
+
+  socket.on('spawnNewPlayerInstance', (playerInfo) => {
+    createOtherPlayerInstance(scene, playerInfo);
+  });
+
+
+}
+
 
 
 
@@ -162,3 +213,80 @@ function applyGravitationalPull(object, blackHoleCenter) {
     object.body.velocity.y += Math.sin(angle) * gravityStrength / distance;
   }
 }
+
+
+// method: player
+function createPlayerInstance(scene, playerInfo) {
+  let player = scene.physics.add.image(playerInfo.x, playerInfo.y, 'ship')
+  .setOrigin(0.5, 0.5)
+  .setDisplaySize(53, 40);
+
+  player.setDrag(50);
+  player.setAngularDrag(90);
+  player.setMaxVelocity(500);
+  // player.health = playerInfo.health;
+  player.setCollideWorldBounds(true);
+
+  // Make sure the camera follows the player
+  scene.cameras.main.startFollow(player);
+  return player;
+}
+
+
+function createOtherPlayerInstance(scene, playerInfo) {
+  const otherPlayer = scene.physics.add.sprite(playerInfo.x, playerInfo.y, 'ship')
+    .setOrigin(0.5, 0.5)
+    .setDisplaySize(53, 40);
+  
+  otherPlayer.playerId = playerInfo.playerId;
+  otherPlayer.health = playerInfo.health;
+  otherPlayer.setCollideWorldBounds(true);
+
+  otherPlayers.add(otherPlayer);
+}
+
+
+function handlePlayerMovement(scene,roomName){
+  if(player){
+    // Handle player movement
+    if (cursors.left.isDown) {
+      player.setAngularVelocity(-150);
+    } else if (cursors.right.isDown) {
+      player.setAngularVelocity(150);
+    } else {
+      player.setAngularVelocity(0);
+    }
+
+    if (cursors.up.isDown) {
+      scene.physics.velocityFromRotation(player.rotation, 200, player.body.acceleration);
+    } else {
+      player.setAcceleration(0);
+    }
+
+    // Emit player movement
+    var x = player.x;
+    var y = player.y;
+    var r = player.rotation;
+    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y || r !== player.oldPosition.rotation)) {
+      socket.emit('playerMovement', { roomName, x: player.x, y: player.y, rotation: player.rotation });
+    }
+
+    // Store old position data
+    player.oldPosition = {
+      x: player.x,
+      y: player.y,
+      rotation: player.rotation
+    };
+
+  }
+}
+
+
+socket.on('syncPlayerMovement', (playerInfo) => {
+  otherPlayers.getChildren().forEach((otherPlayer) => {
+    if (playerInfo.playerId === otherPlayer.playerId) {
+      otherPlayer.setRotation(playerInfo.rotation);
+      otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+    }
+  });
+});
