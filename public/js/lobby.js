@@ -1,6 +1,6 @@
 // Function to update the player list in the lobby
 function updatePlayerList(players) {
-    console.log("***updatePlayerList***", players)
+    console.log("***updatePlayerList***", players);
     const playerListElement = document.querySelector('.player-list');
     playerListElement.innerHTML = ''; // Clear previous list
 
@@ -8,7 +8,7 @@ function updatePlayerList(players) {
         players.forEach(player => {
             const playerItem = document.createElement('div');
             playerItem.classList.add('player-item');
-            playerItem.textContent = player.username;
+            playerItem.textContent = player.username; // Display player username
             playerListElement.appendChild(playerItem);
         });
     } else {
@@ -29,8 +29,8 @@ function displayLobbyDetails(data) {
 
 // Listen for when the lobby is updated (players joining/leaving)
 socket.on('lobbyUpdate', (players) => {
-    console.log("***lobbyUpdate***", players)
-    updatePlayerList(players);
+    console.log("***lobbyUpdate***", players);
+    updatePlayerList(players); // Update player list with the received data
 });
 
 // Listen for when the game is starting
@@ -45,10 +45,18 @@ socket.on('gameStartError', (data) => {
     alert(data.message);
 });
 
-// Handle when a player joins the lobby and load lobby details
-socket.emit('loadLobbyDetails');
-
 // Listen for lobby details (including lobby code and current player's username)
 socket.on('lobbyDetails', (data) => {
-    displayLobbyDetails(data);
+    if (data.success) {
+        console.log(data);
+        console.log('Reconnected to lobby:', data.lobbyCode);
+        displayLobbyDetails(data);  // Implement this to update the UI
+        updatePlayerList(data.players);
+    } else {
+        console.error('Failed to load lobby details:', data.message);
+    }
 });
+
+// Emit the event to load lobby details when reconnecting or initially connecting
+socket.emit('loadLobbyDetails');
+

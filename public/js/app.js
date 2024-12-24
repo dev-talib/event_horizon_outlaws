@@ -72,3 +72,22 @@ function initApp() {
 
 // Run the app initialization
 initApp();
+
+// Warning message for beforeunload
+window.addEventListener('beforeunload', function (event) {
+    const message = 'Refreshing the page will disconnect you from the game. Reconnection is not available yet!';
+    event.returnValue = message;  // For most browsers
+    return message;  // For some older browsers
+    handlePlayerDataAndRedirect();
+});
+
+// Disable F5 and Ctrl+R (refresh) using keydown event
+window.addEventListener('keydown', function(event) {
+    // Disable F5 key (refresh)
+    if (event.key === 'F5' || (event.ctrlKey && event.key === 'r')) {
+        event.preventDefault();  // Stop the default refresh action
+        alert('Refreshing the page will disconnect you from the game. Reconnection is not available yet!');
+        handlePlayerDataAndRedirect();
+    }
+});
+
