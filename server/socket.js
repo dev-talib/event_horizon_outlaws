@@ -59,14 +59,20 @@ module.exports = function(io) {
             // Notify all players in the lobby about the updated player list
             io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
 
-                    // Listen for startGame event
-                    socket.on('startGame', () => {
-                        if (lobby.players.length > 1) {
-                            io.to(lobbyCode).emit('gameStart', { message: 'Game is starting!' });
-                        } else {
-                            io.to(socket.id).emit('gameStartError', { message: 'Not enough players to start the game.' });
-                        }
-                    });
+            // Check if there are more than 2 players in the lobby and start the game
+            console.log('lobby.players.length',lobby.players, lobby.players.length);
+            console.log('**************************lobby player length***********************',lobby.players.length)
+            if (lobby.players.length > 0) {
+              console.log('***gameStart EVENT to frontend***')
+              // Emit a 'startGame' event to all players in the lobby
+              setTimeout(() => {
+                io.to(lobbyCode).emit('startGame', { message: 'Game is starting!' });
+                // change the state of the lobby to 'game' 
+                lobby.state = 'game';
+                io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
+              }, 3000);
+             
+            }
 
             // Handle player disconnection
             socket.on('disconnect', () => {

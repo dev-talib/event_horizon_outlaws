@@ -27,18 +27,48 @@ function displayLobbyDetails(data) {
     }
 }
 
+// Function to display countdown and navigate to the game page after 5 seconds
+function startCountdownAndNavigate() {
+    let countdown = 5;
+    const countdownElement = document.createElement('div');
+    countdownElement.style.position = 'fixed';
+    countdownElement.style.top = '50%';
+    countdownElement.style.left = '50%';
+    countdownElement.style.transform = 'translate(-50%, -50%)';
+    countdownElement.style.fontSize = '30px';
+    countdownElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    countdownElement.style.color = 'white';
+    countdownElement.style.padding = '20px';
+    countdownElement.style.borderRadius = '10px';
+    countdownElement.innerHTML = `Game starting in ${countdown}...`;
+    document.body.appendChild(countdownElement);
+
+    // Update the countdown every second
+    const timerInterval = setInterval(() => {
+        countdown -= 1;
+        countdownElement.innerHTML = `Game starting in ${countdown}...`;
+
+        if (countdown <= 0) {
+            clearInterval(timerInterval);
+            document.body.removeChild(countdownElement); // Remove countdown after timer ends
+
+            // Navigate to the 'game' page after 5 seconds
+            navigateTo('game');
+        }
+    }, 1000);
+}
+
 // Listen for when the lobby is updated (players joining/leaving)
 socket.on('lobbyUpdate', (players) => {
     console.log("***lobbyUpdate***", players);
     updatePlayerList(players); // Update player list with the received data
 });
 
-// Listen for when the game is starting
-socket.on('gameStart', (data) => {
-    alert(data.message);
-    // Optionally, redirect the user to the game view after starting
-    navigateTo('game');
-});
+// // Listen for when the game is starting
+// socket.on('gameStart', (data) => {
+//     alert(data.message);
+//     navigateTo('game');
+// });
 
 // Handle game start error (e.g., not enough players)
 socket.on('gameStartError', (data) => {
@@ -60,3 +90,10 @@ socket.on('lobbyDetails', (data) => {
 // Emit the event to load lobby details when reconnecting or initially connecting
 socket.emit('loadLobbyDetails');
 
+
+// Listen for when the game is starting
+socket.on('startGame', (data) => {
+    console.log('gameStart event from backend',data)
+    // Start the countdown and navigate after 5 seconds
+    startCountdownAndNavigate();
+});
