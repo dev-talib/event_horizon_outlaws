@@ -163,6 +163,16 @@ module.exports = function(io) {
               socket.to(roomName).emit('syncPlayerMovement', player);
             }
         });
+
+        
+        socket.on('fireBullet', (data) => {
+          const { x, y, rotation, roomCode } = data;
+          console.log("fireBullet",data);
+          if (roomCode) {
+              // Broadcast the bullet firing event to all other players in the room
+              socket.to(roomCode).emit('bulletFired', { x, y, rotation });
+          }
+        });
         
 
     });

@@ -28,7 +28,7 @@ var zoneGraphics;
 var background;
 var steroids;
 
-var cursors, fireKey;
+var cursors, fireKey, bullets;
 
 // Preload method: Used for loading game assets
 function preload() {
@@ -62,6 +62,7 @@ function create(){
   // Create the black hole in the center
   drawBlackHole(this, zoneCenter.x, zoneCenter.y, 65, 8);
 
+
   
   cursors = this.input.keyboard.createCursorKeys();
   fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -83,7 +84,10 @@ function update(){
  
   // handle player movement and emit it for server
   handlePlayerMovement(this,roomName);
-
+  
+  if (Phaser.Input.Keyboard.JustDown(fireKey)) {
+    fireBullet(this,roomName);
+  }
    
 }
 
@@ -98,6 +102,11 @@ function startGame(scene) {
   const playerName = lobbyDetails?.username;
 
   otherPlayers = scene.physics.add.group();
+
+  bullets = scene.physics.add.group({
+    defaultKey: 'bullet',
+    maxSize: 100 // Limit the number of bullets
+  });
 
   socket.emit('spawnPlayer', { playerName, roomName });
 
@@ -115,10 +124,11 @@ function startGame(scene) {
     createOtherPlayerInstance(scene, playerInfo);
   });
 
+  socket.on('bulletFired', (data) => {
+    bulletFired(scene, data)
+  });
 
 }
-
-
 
 
 // methods: zone 
@@ -139,9 +149,6 @@ function drawZone(scene, background) {
   // Apply the zoneGraphics as a mask to the background
   background.setMask(zoneGraphics.createGeometryMask());
 }
-
-
-
 
 
 // methods: blackhole
@@ -290,3 +297,69 @@ socket.on('syncPlayerMovement', (playerInfo) => {
     }
   });
 });
+
+
+// bullet mechanism
+function fireBullet(scene, roomName) {
+  // Get a bullet from the pool
+  const bullet = bullets.get();
+
+  if (bullet) {
+      // Set the bullet's position to the player's position
+      bullet.setPosition(player.x, player.y);
+
+      // Set the bullet's rotation to match the player's rotation
+      bullet.setRotation(player.rotation);
+
+      // Set the bullet's velocity based on the player's rotation
+      scene.physics.velocityFromRotation(player.rotation, 500, bullet.body.velocity);  // 500 is the bullet speed
+
+      // Make the bullet smaller (scale it down)
+      bullet.setScale(0.02);  // Adjust this value to make it smaller or larger
+      bullet.lifespan = scene.time.addEvent({
+        delay: 800, // Bullet lifespan
+        callback: () => bullets.killAndHide(bullet),
+      });
+
+      // Emit the bullet firing event to the server, including the roomName
+      socket.emit('fireBullet', {
+          x: player.x,
+          y: player.y,
+          rotation: player.rotation,
+          roomCode: roomName  // Send the roomName along with the other data
+      });
+
+      // Set the bullet to be active and visible
+      bullet.setActive(true);
+      bullet.setVisible(true);
+  }
+}
+
+function bulletFired(scene, data){
+  const { x, y, rotation } = data;
+
+  // Create a new bullet and position it
+  const bullet = bullets.get();
+
+  if (bullet) {
+      bullet.setPosition(x, y);
+      bullet.setRotation(rotation);
+
+      // Apply velocity to the bullet
+      if (bullet.body) {
+         scene.physics.velocityFromRotation(rotation, 500, bullet.body.velocity);  // Adjust speed as needed
+      }
+
+      // Scale the bullet down to make it smaller
+      bullet.setScale(0.02);  // Adjust the scale as desired
+      bullet.lifespan = scene.time.addEvent({
+        delay: 800, // Bullet lifespan
+        callback: () => bullets.killAndHide(bullet),
+      });
+
+      // Make the bullet active and visible
+      bullet.setActive(true);
+      bullet.setVisible(true);
+  }
+}
+
