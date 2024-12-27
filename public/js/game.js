@@ -1,20 +1,20 @@
 // Configuring the Phaser game instance
 var config = {
-    type: Phaser.AUTO,  // Phaser will automatically decide the rendering context (WebGL or Canvas)
-    width: window.innerWidth,  // Set the game width to the window's width
-    height: window.innerHeight,  // Set the game height to the window's height
-    scene: {
-      preload: preload,  // Load game assets before starting the game
-      create: create,    // Create game objects and initialize them
-      update: update     // Update game objects during each frame
-    },
-    physics: {
-      default: 'arcade',  // Use the Arcade Physics engine
-      arcade: {
-        gravity: { y: 0 },  // No gravity (space environment)
-        debug: false         // Disables the debugging information in the console
-      }
+  type: Phaser.AUTO,  // Phaser will automatically decide the rendering context (WebGL or Canvas)
+  width: window.innerWidth,  // Set the game width to the window's width
+  height: window.innerHeight,  // Set the game height to the window's height
+  scene: {
+    preload: preload,  // Load game assets before starting the game
+    create: create,    // Create game objects and initialize them
+    update: update     // Update game objects during each frame
+  },
+  physics: {
+    default: 'arcade',  // Use the Arcade Physics engine
+    arcade: {
+      gravity: { y: 0 },  // No gravity (space environment)
+      debug: false         // Disables the debugging information in the console
     }
+  }
 };
 
 // Create a new Phaser game with the above configuration
@@ -26,7 +26,10 @@ var zone, initialRadius, shrinkRate, minZoneRadius, zoneCenter;
 var zoneGraphics;
 
 var background;
-var steroids;
+var asteroids;
+var mapWidth = 3200; // Replace with your actual map width
+var mapHeight = 3200; // Replace with your actual map height
+var asteroidCount = 20; // Number of asteroids to spawn
 
 var cursors, fireKey, bullets;
 
@@ -38,7 +41,7 @@ function preload() {
   this.load.image('map', 'assets/space.jpg');  // Background image (space)
   this.load.image('playerIcon', 'assets/player-icon.png');  // Icon for the player's ship
   this.load.image('otherPlayerIcon', 'assets/other-player-icon.png');  // Icon for other players' ships
-  this.load.image('steroid', 'assets/steroid.png');  // Image for asteroids
+  this.load.image('asteroid', 'assets/steroid.png');  // Image for asteroids
 }
 
 // Create method: Used to initialize game objects and settings
@@ -62,8 +65,8 @@ function create(){
   // Create the black hole in the center
   drawBlackHole(this, zoneCenter.x, zoneCenter.y, 65, 8);
 
+  asteroids = this.physics.add.group();
 
-  
   cursors = this.input.keyboard.createCursorKeys();
   fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   startGame(this);
@@ -72,7 +75,23 @@ function create(){
   this.physics.world.setBounds(0, 0, 3200, 3200); // Adjust based on map size
   this.cameras.main.setBounds(0, 0, 3200, 3200);
 
+  // Start a timer to shrink the zone smoothly at intervals
+  this.time.addEvent({
+    delay: 200, // Trigger shrinking every 10 seconds
+    callback: () => shrinkZoneSmoothly(this),
+    callbackScope: this,
+    loop: true,
+  });
 
+  // Enable collisions between bullets and other players
+  this.physics.add.overlap(
+    bullets,           // Group of bullets
+    otherPlayers,      // Group of other players
+    bulletHitPlayer,        // Callback function to handle bullet hits
+    null,              // No additional condition
+    this               // Context of the callback
+  );
+  
 }
 
 // Update method: Runs every frame to update game objects (like movement, collision detection, etc.)
@@ -81,14 +100,14 @@ function update(){
   const lobbyDetails = JSON.parse(lobbyDetailsString);
   // Access properties of the parsed object
   const roomName = lobbyDetails?.lobbyCode;
- 
+
   // handle player movement and emit it for server
   handlePlayerMovement(this,roomName);
-  
+
   if (Phaser.Input.Keyboard.JustDown(fireKey)) {
     fireBullet(this,roomName);
   }
-   
+
 }
 
 
@@ -108,6 +127,7 @@ function startGame(scene) {
     maxSize: 100 // Limit the number of bullets
   });
 
+  sendAsteroidDataToServer(asteroidCount, mapWidth,mapHeight, roomName)
   socket.emit('spawnPlayer', { playerName, roomName });
 
   socket.on('loadCurrentPlayers', (players) => {
@@ -124,9 +144,39 @@ function startGame(scene) {
     createOtherPlayerInstance(scene, playerInfo);
   });
 
+  socket.on('spawnAsteroids', (asteroidData) => {
+    console.log('Spawning asteroids:', asteroidData);
+    spawnAllAsteroids(asteroidData); // Call a function to render the asteroids
+  });
+
   socket.on('bulletFired', (data) => {
     bulletFired(scene, data)
   });
+
+  socket.on('playerHitUpdate', (data) => {
+    console.log("playerHitUpdate:",data)
+    // Destroy the bullet with matching bulletId
+    if (data.bulletId) {
+      console.log("hit")
+      bullets.getChildren().forEach((bullet) => {
+        console.log("bulletID",bullet.id)
+        if (bullet.id === data.bulletId) {
+          bullet.destroy(); // Destroy the bullet
+          console.log(`Bullet ${data.bulletId} destroyed`);
+        }
+      });
+    }
+
+    if (data.playerId === socket.id) {
+       updateHealth(scene, data.health);
+    }
+  });
+
+  socket.on('playerDie', (data) => {
+    
+  });
+
+
 
 }
 
@@ -149,6 +199,34 @@ function drawZone(scene, background) {
   // Apply the zoneGraphics as a mask to the background
   background.setMask(zoneGraphics.createGeometryMask());
 }
+
+function shrinkZoneSmoothly(scene) {
+  const currentRadius = initialRadius;
+  const targetRadius = Math.max(minZoneRadius, currentRadius - shrinkRate);
+
+  scene.tweens.add({
+    targets: { radius: currentRadius }, // Use a dummy object to animate the radius
+    radius: targetRadius, // Target radius
+    duration: 5000, // Shrink duration (in milliseconds)
+    ease: 'Linear', // Easing function for smooth animation
+    onUpdate: function (tween) {
+      // Update the zone graphics as the radius changes
+      const newRadius = tween.getValue();
+      initialRadius = newRadius;
+      drawZone(scene, background);
+    },
+    onComplete: function () {
+      // console.log('Zone has shrunk to:', targetRadius);
+
+      // Check players outside the zone after the shrink is complete
+      // otherPlayers.getChildren().forEach((player) => {
+      //   checkPlayerOutsideZone(player);
+      // });
+      // checkPlayerOutsideZone(player);
+    },
+  });
+}
+
 
 
 // methods: blackhole
@@ -201,7 +279,6 @@ function drawBlackHole(scene, x, y, radius, numRings = 5) {
 }
 
 
-
 function applyGravitationalPull(object, blackHoleCenter) {
   const distance = Phaser.Math.Distance.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
   const gravityStrength = 5000;  // Adjust the gravity strength for desired effect
@@ -211,7 +288,7 @@ function applyGravitationalPull(object, blackHoleCenter) {
     object.destroy();  // Destroy the object
     return;  
   }
-  
+
   if (distance < 200) {
     const angle = Phaser.Math.Angle.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
     
@@ -221,30 +298,30 @@ function applyGravitationalPull(object, blackHoleCenter) {
   }
 }
 
-
 // method: player
 function createPlayerInstance(scene, playerInfo) {
   let player = scene.physics.add.image(playerInfo.x, playerInfo.y, 'ship')
   .setOrigin(0.5, 0.5)
   .setDisplaySize(53, 40);
 
-  player.setDrag(50);
-  player.setAngularDrag(90);
-  player.setMaxVelocity(500);
-  // player.health = playerInfo.health;
+  player.setDrag(150);
+  player.setAngularDrag(150);
+  player.setMaxVelocity(250);
+  player.health = playerInfo.health // Set initial health
   player.setCollideWorldBounds(true);
+  
+  createHealthText(scene)
 
   // Make sure the camera follows the player
   scene.cameras.main.startFollow(player);
   return player;
 }
 
-
 function createOtherPlayerInstance(scene, playerInfo) {
   const otherPlayer = scene.physics.add.sprite(playerInfo.x, playerInfo.y, 'ship')
     .setOrigin(0.5, 0.5)
     .setDisplaySize(53, 40);
-  
+
   otherPlayer.playerId = playerInfo.playerId;
   otherPlayer.health = playerInfo.health;
   otherPlayer.setCollideWorldBounds(true);
@@ -253,19 +330,95 @@ function createOtherPlayerInstance(scene, playerInfo) {
 }
 
 
-function handlePlayerMovement(scene,roomName){
-  if(player){
+function createHealthText(scene) {
+  // Create a text object for displaying health
+  const healthText = scene.add.text(10, 10, `Health: 100`, {
+    font: '32px Arial',
+    fill: '#fff',  // White color for the text
+    stroke: '#000',  // Black stroke for visibility
+    strokeThickness: 3,
+  });
+
+  // Ensure the text stays fixed relative to the camera
+  healthText.setScrollFactor(0);  // Makes the text fixed on the screen
+  scene.healthText = healthText;  // Store the health text in the scene for later updates
+}
+
+function updateHealth(scene, health) {
+  // Update the health text
+  scene.healthText.setText(`Health: ${health}`);
+
+  // Change the color based on health value
+  if (health <= 30) {
+    scene.healthText.setStyle({ fill: '#ff0000' });  // Red for low health
+  } else if (health <= 60) {
+    scene.healthText.setStyle({ fill: '#ffff00' });  // Yellow for medium health
+  } else {
+    scene.healthText.setStyle({ fill: '#00ff00' });  // Green for healthy
+  }
+}
+
+function createHealthBar(scene) {
+  // Create a graphics object to draw the health bar
+  const graphics = scene.add.graphics();
+
+  // Set the initial position and size of the health bar
+  const barWidth = 200; // Total width of the health bar
+  const barHeight = 20; // Height of the health bar
+  const x = 10;  // X position on the screen
+  const y = 40;  // Y position on the screen
+
+  // Draw the empty health bar (background)
+  graphics.fillStyle(0x000000, 1);  // Black color for background
+  graphics.fillRect(x, y, barWidth, barHeight);
+
+  // Draw the health bar (foreground) with the initial health
+  const healthBar = {
+    x: x,
+    y: y,
+    width: barWidth,
+    height: barHeight,
+    fill: 0x00ff00, // Initial color (green for full health)
+    health: 100,  // Starting health
+    maxHealth: 100,  // Maximum health
+  };
+
+  // Store health bar in scene for later updates
+  scene.healthBar = healthBar;
+  scene.graphics = graphics;
+}
+
+
+function handlePlayerMovement(scene, roomName) {
+  const angularSpeed = 150; // Speed of rotation
+  const movementSpeed = 150; // Forward movement speed
+  const drag = 150; // Reduced drag value for smoother movement
+  const accelerationDecay = 0.5; // Deceleration factor, between 0 and 1
+
+  if (player) {
+    // Set reduced drag on the player
+    player.body.drag.set(drag);
+
     // Handle player movement
     if (cursors.left.isDown) {
-      player.setAngularVelocity(-150);
+      player.setAngularVelocity(-angularSpeed); // Use angularSpeed variable
     } else if (cursors.right.isDown) {
-      player.setAngularVelocity(150);
+      player.setAngularVelocity(angularSpeed); // Use angularSpeed variable
     } else {
       player.setAngularVelocity(0);
     }
 
+    // Handle forward movement and smooth deceleration
     if (cursors.up.isDown) {
-      scene.physics.velocityFromRotation(player.rotation, 200, player.body.acceleration);
+      scene.physics.velocityFromRotation(player.rotation, movementSpeed, player.body.acceleration); // Move forward
+    } else {
+      // Gradually decrease acceleration to slow down
+      player.body.acceleration.x *= accelerationDecay;
+      player.body.acceleration.y *= accelerationDecay;
+    }
+
+    if (cursors.up.isDown) {
+      scene.physics.velocityFromRotation(player.rotation, movementSpeed, player.body.acceleration); // Use movementSpeed variable
     } else {
       player.setAcceleration(0);
     }
@@ -274,7 +427,10 @@ function handlePlayerMovement(scene,roomName){
     var x = player.x;
     var y = player.y;
     var r = player.rotation;
-    if (player.oldPosition && (x !== player.oldPosition.x || y !== player.oldPosition.y || r !== player.oldPosition.rotation)) {
+    if (
+      player.oldPosition &&
+      (x !== player.oldPosition.x || y !== player.oldPosition.y || r !== player.oldPosition.rotation)
+    ) {
       socket.emit('playerMovement', { roomName, x: player.x, y: player.y, rotation: player.rotation });
     }
 
@@ -282,12 +438,10 @@ function handlePlayerMovement(scene,roomName){
     player.oldPosition = {
       x: player.x,
       y: player.y,
-      rotation: player.rotation
+      rotation: player.rotation,
     };
-
   }
 }
-
 
 socket.on('syncPlayerMovement', (playerInfo) => {
   otherPlayers.getChildren().forEach((otherPlayer) => {
@@ -305,6 +459,9 @@ function fireBullet(scene, roomName) {
   const bullet = bullets.get();
 
   if (bullet) {
+      const bulletId = `bullet-${Date.now()}-${socket.id}`; // Unique bullet ID
+      bullet.owner = socket.id;
+      bullet.id = bulletId;
       // Set the bullet's position to the player's position
       bullet.setPosition(player.x, player.y);
 
@@ -326,7 +483,8 @@ function fireBullet(scene, roomName) {
           x: player.x,
           y: player.y,
           rotation: player.rotation,
-          roomCode: roomName  // Send the roomName along with the other data
+          roomCode: roomName,
+          ownerId: socket.id
       });
 
       // Set the bullet to be active and visible
@@ -336,30 +494,80 @@ function fireBullet(scene, roomName) {
 }
 
 function bulletFired(scene, data){
-  const { x, y, rotation } = data;
+  const { x, y, rotation, ownerId } = data;
 
   // Create a new bullet and position it
   const bullet = bullets.get();
 
   if (bullet) {
-      bullet.setPosition(x, y);
-      bullet.setRotation(rotation);
+    bullet.setPosition(x, y);
+    bullet.setRotation(rotation);
+    bullet.ownerId = ownerId;
+    // Apply velocity to the bullet
+    if (bullet.body) {
+       scene.physics.velocityFromRotation(rotation, 500, bullet.body.velocity);  // Adjust speed as needed
+    }
 
-      // Apply velocity to the bullet
-      if (bullet.body) {
-         scene.physics.velocityFromRotation(rotation, 500, bullet.body.velocity);  // Adjust speed as needed
-      }
+    // Scale the bullet down to make it smaller
+    bullet.setScale(0.02);  // Adjust the scale as desired
+    bullet.lifespan = scene.time.addEvent({
+      delay: 800, // Bullet lifespan
+      callback: () => bullets.killAndHide(bullet),
+    });
 
-      // Scale the bullet down to make it smaller
-      bullet.setScale(0.02);  // Adjust the scale as desired
-      bullet.lifespan = scene.time.addEvent({
-        delay: 800, // Bullet lifespan
-        callback: () => bullets.killAndHide(bullet),
-      });
-
-      // Make the bullet active and visible
-      bullet.setActive(true);
-      bullet.setVisible(true);
+    // Make the bullet active and visible
+    bullet.setActive(true);
+    bullet.setVisible(true);
   }
 }
 
+
+
+function bulletHitPlayer(bullet, player) {
+  if (bullet.ownerId !== player.playerId && bullet.active && player.active) {
+    // bullet.destroy(); // Destroy bullet on hit
+    const lobbyDetailsString = sessionStorage.getItem('lobbyDetails');
+    const lobbyDetails = JSON.parse(lobbyDetailsString);
+
+    // Access properties of the parsed object
+    const roomCode = lobbyDetails?.lobbyCode;
+    socket.emit('playerHit', { roomCode, playerId: player.playerId, bulletId: bullet.id }); // Emit hit event with room info
+  }
+}
+
+
+function generateRandomAsteroids(count, mapWidth, mapHeight) {
+  const asteroidsData = [];
+
+  for (let i = 0; i < count; i++) {
+    const x = Math.random() * mapWidth; // Random X position across the entire map width
+    const y = Math.random() * mapHeight; // Random Y position across the entire map height
+    const scale = Math.random() * 0.5 + 0.1; // Random size between 0.1 and 0.6
+
+    asteroidsData.push({ x, y, scale });
+  }
+
+  return asteroidsData;
+}
+
+
+function sendAsteroidDataToServer(asteroidCount, mapWidth,mapHeight, roomCode) {
+  const asteroidData = generateRandomAsteroids(asteroidCount, mapWidth, mapHeight); // Generate asteroids
+  socket.emit('generateAsteroids', {asteroidData, roomCode}); // Emit the asteroid data to the server
+}
+
+
+function spawnAllAsteroids(asteroidData) {
+  asteroidData.forEach((data) => {
+    const asteroid = asteroids.create(
+      data.x,
+      data.y,
+      'asteroid' // Assuming 'asteroid' is your sprite key
+    );
+    asteroid.setScale(data.scale);
+    // asteroid.setVelocity(
+    //   Phaser.Math.Between(-50, 50),
+    //   Phaser.Math.Between(-50, 50)
+    // ); // Optional: Add random velocity
+  });
+}

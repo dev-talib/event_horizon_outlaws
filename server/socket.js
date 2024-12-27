@@ -31,7 +31,7 @@ module.exports = function(io) {
                 if (!lobbyCode) {
                     lobbyCode = generateLobbyCode();
                 }
-                lobby = { code: lobbyCode, players: [], state: 'lobby' };
+                lobby = { code: lobbyCode, players: [], state: 'lobby', host: null };
                 lobbies[lobbyCode] = lobby;
             }
 
@@ -43,7 +43,11 @@ module.exports = function(io) {
 
             // Add the player to the lobby
             lobby.players.push({ username, socketId: socket.id });
-
+           
+            // Assign the first player to join as the host
+            if (!lobby.host) {
+                lobby.host = socket.id;
+            }
             // Save the player state on the server (username and their current lobby)
             socket.join(lobbyCode);
 
@@ -167,13 +171,37 @@ module.exports = function(io) {
         
         socket.on('fireBullet', (data) => {
           const { x, y, rotation, roomCode } = data;
-          console.log("fireBullet",data);
           if (roomCode) {
-              // Broadcast the bullet firing event to all other players in the room
-              socket.to(roomCode).emit('bulletFired', { x, y, rotation });
+              socket.to(roomCode).emit('bulletFired', data);
           }
         });
-        
+
+        socket.on('playerHit', ({ roomCode, playerId, bulletId }) => {
+            if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
+              const player = lobbies[roomCode][playerId];
+              player.health -= 10; // Reduce player health
+              console.log(`Player ${playerId} hit. Health: ${player.health}`);
+              if (player.health <= 0) {
+                // delete rooms[roomName][playerId];
+                io.in(roomCode).emit('playerDied', player);
+              } else {
+                io.in(roomCode).emit('playerHitUpdate', { playerId, health: player.health, bulletId, playerName: player });
+              }
+            }
+        });
+
+        socket.on('generateAsteroids', ({asteroidData, roomCode}) => {
+            console.log("recive event generateAsteroids", asteroidData, roomCode)
+            const lobby = lobbies[roomCode];
+            const hostPlayer = lobby.host;
+            console.log("hostPlayer:",hostPlayer)
+            if (roomCode && asteroidData && hostPlayer === socket.id) {
+                console.log("going to hit spawnAsteroid")
+                setTimeout(()=>{
+                    io.in(roomCode).emit('spawnAsteroids', asteroidData);
+                },5000)
+            }
+        });
 
     });
 
