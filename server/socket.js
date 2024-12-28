@@ -71,7 +71,7 @@ module.exports = function(io) {
                 // change the state of the lobby to 'game' 
                 lobby.state = 'game';
                 io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
-              }, 3000);
+              }, 2000);
              
             }
 
@@ -193,13 +193,22 @@ module.exports = function(io) {
         socket.on('generateAsteroids', ({asteroidData, roomCode}) => {
             console.log("recive event generateAsteroids", asteroidData, roomCode)
             const lobby = lobbies[roomCode];
-            const hostPlayer = lobby.host;
+            const hostPlayer = lobby?.host? lobby.host: null;
             console.log("hostPlayer:",hostPlayer)
             if (roomCode && asteroidData && hostPlayer === socket.id) {
                 console.log("going to hit spawnAsteroid")
                 setTimeout(()=>{
                     io.in(roomCode).emit('spawnAsteroids', asteroidData);
-                },5000)
+                },3000)
+            }
+        });
+
+        socket.on('changePlayerHealth', ({ roomCode, playerId, health}) => {
+            console.log("event changePlayerHealth", roomCode, playerId, health)
+            if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
+              const player = lobbies[roomCode][playerId];
+              player.health = health; 
+              io.in(roomCode).emit('playerHealthChanged', { playerId, health: player.health, playerName: player });
             }
         });
 
