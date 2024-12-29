@@ -6,7 +6,6 @@ module.exports = function(io) {
     }
 
     io.on('connection', (socket) => {
-        console.log('A user connected:', socket.id);
         if (!socket.request.session) {
             console.log('Session not available');
             return;
@@ -14,7 +13,6 @@ module.exports = function(io) {
 
         // Event: Player joins a lobby
         socket.on('joinLobby', ({ username, lobbyCode }) => {
-            console.log("EVENT JOIN LOBBY");
 
             if (!socket.request.session) {
                 console.log('Session not available during joinLobby');
@@ -31,7 +29,7 @@ module.exports = function(io) {
                 if (!lobbyCode) {
                     lobbyCode = generateLobbyCode();
                 }
-                lobby = { code: lobbyCode, players: [], state: 'lobby', host: null };
+                lobby = { code: lobbyCode, players: [], state: 'lobby', host: null,  playerCount: 0 };
                 lobbies[lobbyCode] = lobby;
             }
 
@@ -43,6 +41,7 @@ module.exports = function(io) {
 
             // Add the player to the lobby
             lobby.players.push({ username, socketId: socket.id });
+            lobby.playerCount += 1; // Increase the player count
            
             // Assign the first player to join as the host
             if (!lobby.host) {
@@ -64,7 +63,6 @@ module.exports = function(io) {
 
             // Check if there are more than 2 players in the lobby and start the game
             if (lobby.players.length > 1) {
-              console.log('***gameStart EVENT to frontend***')
               // Emit a 'startGame' event to all players in the lobby
               setTimeout(() => {
                 io.to(lobbyCode).emit('startGame', { message: 'Game is starting!' });
@@ -95,10 +93,6 @@ module.exports = function(io) {
             // Check if the user has a valid session with a lobby code
             if (lobbyCode && lobbies[lobbyCode]) {
                 const lobby = lobbies[lobbyCode];
-        
-                // Log the structure of the players array
-                console.log("Lobby players: ", lobby.players);
-        
                 // Normalize username to avoid case or space mismatches
                 const normalizedUsername = username.trim().toLowerCase();
                 
@@ -170,7 +164,6 @@ module.exports = function(io) {
         
         socket.on('fireBullet', (data) => {
           if (data.roomCode) {
-              console.log("event fireBullet",data)
               io.in(data.roomCode).emit('bulletFired', data);
           }
         });
@@ -179,9 +172,16 @@ module.exports = function(io) {
             if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
               const player = lobbies[roomCode][playerId];
               player.health -= 10; // Reduce player health
-              if (player.health <= 0) {
+              if (player.health <= 0 && lobbies[roomCode].playerCount  > 0) {
+                lobbies[roomCode].playerCount -= 1;
                 // delete rooms[roomName][playerId];
-                io.in(roomCode).emit('playerDied', player);
+                io.in(roomCode).emit('playerDied', {player, playerCount: lobbies[roomCode].playerCount});
+
+                // Check if there's only one player left alive
+                if (lobbies[roomCode].playerCount === 1) {
+                    checkWinner(roomCode)
+                }
+
               } else {
                 io.in(roomCode).emit('playerHitUpdate', { playerId, health: player.health, bulletId, playerName: player });
               }
@@ -189,12 +189,9 @@ module.exports = function(io) {
         });
 
         socket.on('generateAsteroids', ({asteroidData, roomCode}) => {
-            console.log("recive event generateAsteroids", asteroidData, roomCode)
             const lobby = lobbies[roomCode];
             const hostPlayer = lobby?.host? lobby.host: null;
-            console.log("hostPlayer:",hostPlayer)
             if (roomCode && asteroidData && hostPlayer === socket.id) {
-                console.log("going to hit spawnAsteroid")
                 setTimeout(()=>{
                     io.in(roomCode).emit('spawnAsteroids', asteroidData);
                 },3000)
@@ -203,11 +200,43 @@ module.exports = function(io) {
 
         socket.on('changePlayerHealth', ({ roomCode, playerId, health}) => {
             if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
-              const player = lobbies[roomCode][playerId];
+              const player = lobbies[roomCode][playerId];  
+              if (player.health <= 0 && lobbies[roomCode].playerCount  > 0) {
+                 lobbies[roomCode].playerCount -= 1;
+                 io.in(roomCode).emit('playerDied', {player, playerCount: lobbies[roomCode].playerCount });
+              }
+              
+              // Check if there's only one player left alive
+              if (lobbies[roomCode].playerCount === 1) {
+                checkWinner(roomCode)
+              }
+
               player.health = health; 
               io.in(roomCode).emit('playerHealthChanged', { playerId, health: player.health, playerName: player });
             }
         });
+
+        function checkWinner(lobbyCode) {
+            console.log("checkWinner");
+
+            const lobby = lobbies[lobbyCode];
+            console.log("lobby players ===> ",lobby);
+            if (!lobby || !lobby.players) {
+                console.log("Lobby not found or no players in the lobby.");
+                return;
+            }
+            // Find the remaining player with health > 0
+            const remainingPlayer = Object.values(lobby.players)
+                .map(player => lobby[player.socketId]) 
+                .find(player => player && player.health > 0);
+            console.log("Remaining player:", remainingPlayer);
+
+            if (remainingPlayer) {
+                io.in(lobbyCode).emit('declareWinner', { player: remainingPlayer });
+            } else {
+                console.log("No remaining player with health > 0.");
+            }
+        }
 
     });
 

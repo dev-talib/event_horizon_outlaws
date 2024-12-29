@@ -24,6 +24,7 @@ const diePopup = document.getElementById('diePopup');
 const gameOverScreen = document.getElementById('gameOverScreen');
 const winnerScreen = document.getElementById('winnerScreen');
 
+
 // global variable
 var player, otherPlayers, isDie, playerCount = 0; 
 
@@ -40,8 +41,8 @@ var stars;
 
 var background;
 var asteroids;
-var mapWidth = 3200; // Replace with your actual map width
-var mapHeight = 3200; // Replace with your actual map height
+var mapWidth = 3200; // map width
+var mapHeight = 3200; // map height
 var asteroidCount = 15; // Number of asteroids to spawn
 
 var cursors, fireKey, bullets;
@@ -64,7 +65,7 @@ function create(){
 
   // Initialize zone properties
   initialRadius = 1850;  // Initial size of the zone
-  shrinkRate = 30;        // Rate at which the zone shrinks
+  shrinkRate = 200;        // Rate at which the zone shrinks
   minZoneRadius = 20;    // Minimum zone radius
   zoneCenter = { x: 1600, y: 1600 }; // Zone center position
 
@@ -72,16 +73,12 @@ function create(){
   background = this.add.image(zoneCenter.x, zoneCenter.y, 'map').setOrigin(0.5, 0.5);
   // Scale the background image to be larger than the zone initially
   background.setScale(2); 
-  // Draw the initial zone and apply the mask
   drawZone(this, background);
 
   // Create the black hole in the center
   drawBlackHole(this, zoneCenter.x, zoneCenter.y, 65, 8);
 
   asteroids = this.physics.add.group();
-   // Create stars (particles) to simulate the space environment
-  //  const starCount = 500; // Number of stars
-  //  drawStars(this,starCount)
 
   cursors = this.input.keyboard.createCursorKeys();
   fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -106,16 +103,6 @@ function create(){
     callbackScope: this,
     loop: true,
   });
-
-  // Enable collisions between bullets and other players
-  this.physics.add.overlap(
-    bullets,           // Group of bullets
-    otherPlayers,      // Group of other players
-    bulletHitPlayer,        // Callback function to handle bullet hits
-    null,              // No additional condition
-    this               // Context of the callback
-  );
-
 
   // Create a graphic for the radar itself and store it in the scene
   this.radarGraphics = this.add.graphics();
@@ -212,22 +199,18 @@ function startGame(scene) {
   });
 
   socket.on('spawnAsteroids', (asteroidData) => {
-    console.log('Spawning asteroids:', asteroidData);
     spawnAllAsteroids(asteroidData); // Call a function to render the asteroids
   });
 
   socket.on('bulletFired', (data) => {
-    console.log("**********event bulletFired********",data)
     bulletFired(scene, data)
   });
 
   socket.on('playerHitUpdate', (data) => {
     if (data.bulletId) {
-      console.log("hit")
       bullets.getChildren().forEach((bullet) => {
         if (bullet.id === data.bulletId) {
           bullet.destroy(); 
-          console.log(`Bullet ${data.bulletId} destroyed`);
         }
       });
     }
@@ -238,13 +221,15 @@ function startGame(scene) {
   });
 
   socket.on('playerDied', (data) => {
-    if(data.playerId === socket.id){
+    playerCount = data.playerCount;
+    scene.playerCountText.setText(`playerCount: ${playerCount}`);
+    if(data.player.playerId === socket.id){
         isDie = true;
         player.destroy();
         showDiePopup();
     }else{
       otherPlayers.getChildren().forEach((otherPlayer) => {
-        if (data.playerId === otherPlayer.playerId) {
+        if (data.player.playerId === otherPlayer.playerId) {
            otherPlayer.destroy();
         }
       });
@@ -256,10 +241,19 @@ function startGame(scene) {
       updateHealth(scene, data.health);
     }
   });
+
+  socket.on('declareWinner',(data)=>{
+    console.log("declareWinner===",data)
+    setTimeout(()=>{
+        showWinnerScreen(data.player)
+    },1000)
+  })
   
 }
 
 function postDelay(scene){
+    // Enable collisions between bullets and other players
+    scene.physics.add.overlap(bullets, otherPlayers, bulletHitPlayer, null, this);
     // Collision detection: player and asteroids
     scene.physics.add.collider(player, asteroids, handlePlayerAsteroidCollision, null, this);
     // Collision detection: other players and asteroids (if needed)
@@ -292,17 +286,19 @@ function shrinkZoneSmoothly(scene) {
   const targetRadius = Math.max(minZoneRadius, currentRadius - shrinkRate);
 
   scene.tweens.add({
-    targets: { radius: currentRadius }, // Use a dummy object to animate the radius
+    targets: { radius: currentRadius }, 
     radius: targetRadius, // Target radius
     duration: 5000, // Shrink duration (in milliseconds)
     ease: 'Linear', // Easing function for smooth animation
     onUpdate: function (tween) {
-      // Update the zone graphics as the radius changes
       const newRadius = tween.getValue();
       initialRadius = newRadius;
       drawZone(scene, background);
     },
     onComplete: function () {
+      if (initialRadius <= minZoneRadius && playerCount > 1) {
+        showGameOverScreen();
+      }
     },
   });
 }
@@ -349,7 +345,6 @@ function applyGravitationalPull(object, blackHoleCenter) {
   const gravityStrength = 800;  // Adjust the gravity strength for desired effect
   const eventHorizonRadius = 50;
   if (distance < eventHorizonRadius) {
-    console.log(`${object.texture.key} entered the black hole and is being destroyed.`);
     object.destroy();  // Destroy the object
     return;  
   }
@@ -403,15 +398,23 @@ function createHealthText(scene, health) {
     strokeThickness: 3,
   });
 
+  const playerCountText = scene.add.text(10, 50, `playerCount: ${playerCount}`, {
+    font: '32px Arial',
+    fill: '#fff',  // White color for the text
+    stroke: '#000',  // Black stroke for visibility
+    strokeThickness: 3,
+  });
+
   // Ensure the text stays fixed relative to the camera
   healthText.setScrollFactor(0);  // Makes the text fixed on the screen
+  playerCountText.setScrollFactor(0); 
   scene.healthText = healthText;  // Store the health text in the scene for later updates
+  scene.playerCountText = playerCountText
 }
 
 function updateHealth(scene, health) {
   // Update the health text
   scene.healthText.setText(`Health: ${health}`);
-
   // Change the color based on health value
   if (health <= 30) {
     scene.healthText.setStyle({ fill: '#ff0000' });  // Red for low health
@@ -490,7 +493,6 @@ socket.on('gameWinner',()=>{
 })
 
 function bulletFired(scene, data){
-  console.log("*****bulletFired*****",data)
   const { x, y, rotation, ownerId, bulletId } = data;
 
   // Create a new bullet and position it
@@ -708,11 +710,17 @@ function destroyAsteroidsOutsideZone(){
   });
 }
 
-// Function to show the "You Died" popup
 function showDiePopup() {
-  diePopup.style.display = 'block'; // Show the popup
+  console.log("showDiePopup");
+  diePopup.style.display = 'block'; 
 }
 
-function showWinnerScreen() {
-  winnerScreen.style.display = 'block'; // Show the screen
+function showWinnerScreen(info) {
+  let winnerInfo = document.getElementById('winnerScreen-info');
+  winnerInfo.textContent = `The last man standing is : ${info.playerName}`;
+  winnerScreen.style.display = 'block'; 
+}
+
+function showGameOverScreen(){
+  gameOverScreen.style.display = 'block';
 }
