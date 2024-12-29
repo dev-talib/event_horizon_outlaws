@@ -65,7 +65,7 @@ function create(){
 
   // Initialize zone properties
   initialRadius = 1850;  // Initial size of the zone
-  shrinkRate = 200;        // Rate at which the zone shrinks
+  shrinkRate = 30;        // Rate at which the zone shrinks
   minZoneRadius = 20;    // Minimum zone radius
   zoneCenter = { x: 1600, y: 1600 }; // Zone center position
 
@@ -144,6 +144,7 @@ function update(time, delta){
 
     // apply gravitationalPull towars blackhole
     applyGravitationalPull(player, zoneCenter);
+
   }
 
   if (Phaser.Input.Keyboard.JustDown(fireKey)) {
@@ -340,21 +341,50 @@ function drawBlackHole(scene, x, y, radius, numRings = 5) {
   return blackHoleContainer;
 }
 
+// function applyGravitationalPull(object, blackHoleCenter) {
+//   const distance = Phaser.Math.Distance.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
+//   const gravityStrength = 800;  // Adjust the gravity strength for desired effect
+//   const eventHorizonRadius = 50;
+//   if (distance < eventHorizonRadius) {
+//     isDie = true;
+//     object.destroy();  // Destroy the object
+//     return;  
+//   }
+
+//   if (distance < 300) {
+//     const angle = Phaser.Math.Angle.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
+    
+//     // Apply velocity towards the black hole
+//     object.body.velocity.x += Math.cos(angle) * gravityStrength / distance;
+//     object.body.velocity.y += Math.sin(angle) * gravityStrength / distance;
+//   }
+// }
 function applyGravitationalPull(object, blackHoleCenter) {
-  const distance = Phaser.Math.Distance.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
-  const gravityStrength = 800;  // Adjust the gravity strength for desired effect
+  const { x: objX, y: objY } = object;
+  const { x: centerX, y: centerY } = blackHoleCenter;
+
+  // Calculate distance and angle only once
+  const distance = Phaser.Math.Distance.Between(objX, objY, centerX, centerY);
+
+  // Constants
+  const gravityStrength = 800; // Adjust the gravity strength for desired effect
   const eventHorizonRadius = 50;
+  const gravitationalEffectRadius = 300;
+
+  // Check if the object is within the event horizon
   if (distance < eventHorizonRadius) {
-    object.destroy();  // Destroy the object
-    return;  
+    dieInsideBlackHole(object);
+    return;
   }
 
-  if (distance < 300) {
-    const angle = Phaser.Math.Angle.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
-    
-    // Apply velocity towards the black hole
-    object.body.velocity.x += Math.cos(angle) * gravityStrength / distance;
-    object.body.velocity.y += Math.sin(angle) * gravityStrength / distance;
+  // Apply gravitational pull if within the gravitational effect radius
+  if (distance < gravitationalEffectRadius) {
+    const angle = Phaser.Math.Angle.Between(objX, objY, centerX, centerY);
+    const gravitationalForce = gravityStrength / distance;
+
+    // Update object velocity
+    object.body.velocity.x += Math.cos(angle) * gravitationalForce;
+    object.body.velocity.y += Math.sin(angle) * gravitationalForce;
   }
 }
 
@@ -723,4 +753,12 @@ function showWinnerScreen(info) {
 
 function showGameOverScreen(){
   gameOverScreen.style.display = 'block';
+}
+
+function dieInsideBlackHole(player){
+  const lobbyDetailsString = sessionStorage.getItem('lobbyDetails');
+  const lobbyDetails = JSON.parse(lobbyDetailsString);
+  const roomCode = lobbyDetails?.lobbyCode;
+  player.health = 0;
+  socket.emit('changePlayerHealth', { roomCode, playerId: socket.id, health: player.health});
 }
