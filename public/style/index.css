@@ -20,6 +20,17 @@ body {
     z-index: 2;
   }
 
+  #lobby-container {
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    border: 2px solid #00ff99;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #00ff99, 0 0 40px #ff33ff;
+    position: relative;
+    z-index: 2;
+  }
+
   .image-container {
     flex: 1;
     display: flex;

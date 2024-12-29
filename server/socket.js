@@ -135,7 +135,6 @@ module.exports = function(io) {
 
         socket.on('spawnPlayer', ({ playerName, roomName }) => {
             socket.join(roomName);
-        
             if (!lobbies[roomName]) {
                 lobbies[roomName] = {};
             }
@@ -150,7 +149,7 @@ module.exports = function(io) {
                 x: initialX,
                 y: initialY,
                 playerId: socket.id,
-                health: 100
+                health: 200
             };
         
             socket.emit('loadCurrentPlayers', lobbies[roomName]);
@@ -170,9 +169,9 @@ module.exports = function(io) {
 
         
         socket.on('fireBullet', (data) => {
-          const { x, y, rotation, roomCode } = data;
-          if (roomCode) {
-              socket.to(roomCode).emit('bulletFired', data);
+          if (data.roomCode) {
+              console.log("event fireBullet",data)
+              io.in(data.roomCode).emit('bulletFired', data);
           }
         });
 
@@ -180,7 +179,6 @@ module.exports = function(io) {
             if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
               const player = lobbies[roomCode][playerId];
               player.health -= 10; // Reduce player health
-              console.log(`Player ${playerId} hit. Health: ${player.health}`);
               if (player.health <= 0) {
                 // delete rooms[roomName][playerId];
                 io.in(roomCode).emit('playerDied', player);
@@ -204,7 +202,6 @@ module.exports = function(io) {
         });
 
         socket.on('changePlayerHealth', ({ roomCode, playerId, health}) => {
-            console.log("event changePlayerHealth", roomCode, playerId, health)
             if (lobbies[roomCode] && lobbies[roomCode][playerId]) {
               const player = lobbies[roomCode][playerId];
               player.health = health; 
