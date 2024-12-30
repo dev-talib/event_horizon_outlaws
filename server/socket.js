@@ -73,19 +73,38 @@ module.exports = function(io) {
              
             }
 
-            // Handle player disconnection
-            socket.on('disconnect', () => {
+             // Handle player disconnection
+             socket.on('disconnect', () => {
                 console.log('A user disconnected:', socket.id);
+                let lobbyCode = socket.request.session.lobbyCode;
+                let lobby = lobbies[lobbyCode];
+                if (!lobby) {
+                    return;
+                }
+            
+                // Find disconnected player
                 let player = lobby.players.find(player => player.socketId === socket.id);
                 if (player) {
                     lobby.players = lobby.players.filter(player => player.socketId !== socket.id);
+                    lobby.playerCount -= 1; 
+            
+                    if (lobby.host === socket.id) {
+                        if (lobby.players.length > 0) {
+                            lobby.host = lobby.players[0].socketId; 
+                        } else {
+                            delete lobby.host; 
+                        }
+                    }
+            
+                    io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
                     if (lobby.players.length === 0) {
                         delete lobbies[lobbyCode];
+                        console.log(`Lobby ${lobbyCode} deleted as no players remain.`);
                     } else {
-                        io.to(lobbyCode).emit('lobbyUpdate', lobby.players);
+                        io.to(lobbyCode).emit('playerDisconnected', { username: player.username });
                     }
                 }
-            });
+             });
         });
 
         socket.on('loadLobbyDetails', () => {

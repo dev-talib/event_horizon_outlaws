@@ -77,8 +77,9 @@ initApp();
 window.addEventListener('beforeunload', function (event) {
     const message = 'Refreshing the page will disconnect you from the game. Reconnection is not available yet!';
     event.returnValue = message;  // For most browsers
-    return message;  // For some older browsers
     handlePlayerDataAndRedirect();
+    return message;  // For some older browsers
+   
 });
 
 // Disable F5 and Ctrl+R (refresh) using keydown event
@@ -91,3 +92,8 @@ window.addEventListener('keydown', function(event) {
     }
 });
 
+function handlePlayerDataAndRedirect(){
+    loadView('welcome');
+    sessionStorage.removeItem('lobbyDetails');
+    sessionStorage.removeItem('currentView');
+}
