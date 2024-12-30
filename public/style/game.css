@@ -1,0 +1,104 @@
+/* Popup styles */
+.popup {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+}
+
+.popup button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: #ff4757;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.popup button:hover {
+    background: #ff6b81;
+}
+
+/* Game Over Screen Styles */
+.game-over-screen {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    text-align: center;
+    z-index: 1000;
+    padding-top: 20%;
+    box-sizing: border-box;
+}
+
+.game-over-screen h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+.game-over-screen button {
+    padding: 10px 20px;
+    font-size: 1.2em;
+    background: #ff4757;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.game-over-screen button:hover {
+    background: #ff6b81;
+}
+
+/* Winner Screen Styles */
+.winner-screen {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    text-align: center;
+    z-index: 1000;
+    padding-top: 20%;
+    box-sizing: border-box;
+}
+
+.winner-screen h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+    color: #4caf50;
+}
+
+.winner-screen p {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+.winner-screen button {
+    padding: 10px 20px;
+    font-size: 1.2em;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.winner-screen button:hover {
+    background: #81c784;
+}

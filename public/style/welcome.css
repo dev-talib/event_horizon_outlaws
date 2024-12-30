@@ -1,0 +1,115 @@
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    font-family: 'Press Start 2P', cursive;
+    color: #fff;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* .image-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  } */
+
+  .space-girl {
+    width: 400px;
+    /* transform-origin: center center; */
+    transition: transform 0.5s ease;
+    /* animation: float 6s ease-in-out infinite; */
+  }
+
+  .content {
+    flex: 1;
+    text-align: left;
+  }
+
+  .title {
+    font-size: 3.5rem;
+    color: #00ff99;
+    text-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99, 0 0 30px #00ff99, 0 0 40px #ff33ff;
+    animation: flicker 2s infinite alternate;
+  }
+
+  .subtitle {
+    font-size: 1.2rem;
+    margin: 20px 0;
+    color: #ff33ff;
+    text-shadow: 0 0 10px #ff33ff, 0 0 20px #ff33ff;
+  }
+
+  .glow-button {
+    padding: 15px 40px;
+    border: 2px solid #00ff99;
+    background-color: #000;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 1.2rem;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+    transition: transform 0.3s, box-shadow 0.3s;
+    animation: glow 2s infinite alternate;
+    display: inline-block;
+    margin-top: 20px;
+  }
+
+  .glow-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px #00ff99, 0 0 30px #00ff99, 0 0 40px #00ff99;
+  }
+
+  @keyframes glow {
+    0% {
+      box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99, 0 0 30px #00ff99;
+    }
+    100% {
+      box-shadow: 0 0 20px #ff33ff, 0 0 40px #ff33ff, 0 0 60px #ff33ff;
+    }
+  }
+
+  @keyframes flicker {
+    0% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  .retro-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(0,0,0,0.8) 20%, rgba(255,255,255,0) 70%);
+    background-size: 15px 15px;
+    background-image: linear-gradient(to right, #333 1px, transparent 1px),
+                      linear-gradient(to bottom, #333 1px, transparent 1px);
+    z-index: 1;
+  }

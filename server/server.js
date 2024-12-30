@@ -1,46 +1,45 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const session = require('express-session');
 const path = require('path');
-const bodyParser = require('body-parser');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files from the public directory
+// Configure express-session middleware
+app.use(session({
+    secret: 'your-secret-key',  // Use a secret key for signing the session ID cookie
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        secure: false  // Set to `true` if using HTTPS, otherwise `false`
+    }
+}));
+
+// Serve static files
 app.use(express.static('public'));
 
-// Parse URL-encoded data (for form submission)
-app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// Route for serving lobby page
-app.get('/lobby', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'lobby.html'));
+// Handle the app route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'views', 'index.html'));
 });
 
-// Handle form submission and redirect to the game
-app.post('/join-room', (req, res) => {
-  const { playerName, roomName } = req.body;
-  console.log(req.body);
-  if (playerName && roomName) {
-    // Redirect to game.html with query parameters
-    res.redirect(`/game.html?room=${encodeURIComponent(roomName)}&player=${encodeURIComponent(playerName)}`);
-  } else {
-    // If missing data, redirect back to lobby with error (optional)
-    res.redirect('/lobby');
-  }
-});
-
-// Route for serving the game page
-app.get('/game.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'game.html'));
+// Use the session middleware with socket.io
+io.use((socket, next) => {
+    session({
+        secret: 'your-secret-key',  // Use the same secret key for Socket.IO
+        resave: false,
+        saveUninitialized: true,
+        cookie: { secure: false }  // Ensure this is `false` for development (non-HTTPS)
+    })(socket.request, socket.request.res || {}, next);
 });
 
 // Start the server
-server.listen(3000, () => {
-  console.log('Server listening on port 3000');
+server.listen(5000, () => {
+    console.log('Server listening on port 5000');
 });
 
-// Import and use socket events
+// Import and initialize the socket functionality
 require('./socket')(io);
