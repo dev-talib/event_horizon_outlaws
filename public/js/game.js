@@ -27,6 +27,8 @@ const winnerScreen = document.getElementById('winnerScreen');
 
 // global variable
 var player, otherPlayers, isDie, playerCount = 0; 
+var proximitySoundPlayed = false;
+var proximitySound;
 
 // Define radar parameters
 var radarRadius = 100;
@@ -56,10 +58,21 @@ function preload() {
   this.load.image('playerIcon', 'assets/player-icon.png');  // Icon for the player's ship
   this.load.image('otherPlayerIcon', 'assets/other-player-icon.png');  // Icon for other players' ships
   this.load.image('asteroid', 'assets/steroid.png');  // Image for asteroids
+  this.load.audio('bulletFire', 'assets/audio/laser-gun-shot.wav'); 
+  // this.load.audio('bgSound', 'assets/audio/bg-music.mp3'); 
+  this.load.audio('proximitySound', 'assets/audio/action.mp3');
 }
 
 // Create method: Used to initialize game objects and settings
 function create(){
+
+  // const bgSound = this.sound.add('bgSound', { loop: true, volume: 0.1 });
+  // bgSound.play();
+  proximitySound = this.sound.add('proximitySound', {
+    volume: 0.5, // Adjust volume as needed
+    loop: false, // Prevent looping
+  });
+
   // Create the shrinking zone as a mask
   zoneGraphics = this.add.graphics();
 
@@ -145,9 +158,12 @@ function update(time, delta){
     // apply gravitationalPull towars blackhole
     applyGravitationalPull(player, zoneCenter);
 
+    checkProximity(player, otherPlayers, proximitySound);
+
   }
 
   if (Phaser.Input.Keyboard.JustDown(fireKey)) {
+    this.sound.play('bulletFire',{volume: 0.1});
     const bulletId = `bullet-${Date.now()}-${socket.id}`;
     // fireBullet(this,roomName);
     socket.emit('fireBullet', {
@@ -158,10 +174,7 @@ function update(time, delta){
       ownerId: socket.id,
       bulletId: bulletId
     });
-
   }
-  
-  
   
 }
 
@@ -341,24 +354,6 @@ function drawBlackHole(scene, x, y, radius, numRings = 5) {
   return blackHoleContainer;
 }
 
-// function applyGravitationalPull(object, blackHoleCenter) {
-//   const distance = Phaser.Math.Distance.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
-//   const gravityStrength = 800;  // Adjust the gravity strength for desired effect
-//   const eventHorizonRadius = 50;
-//   if (distance < eventHorizonRadius) {
-//     isDie = true;
-//     object.destroy();  // Destroy the object
-//     return;  
-//   }
-
-//   if (distance < 300) {
-//     const angle = Phaser.Math.Angle.Between(object.x, object.y, blackHoleCenter.x, blackHoleCenter.y);
-    
-//     // Apply velocity towards the black hole
-//     object.body.velocity.x += Math.cos(angle) * gravityStrength / distance;
-//     object.body.velocity.y += Math.sin(angle) * gravityStrength / distance;
-//   }
-// }
 function applyGravitationalPull(object, blackHoleCenter) {
   const { x: objX, y: objY } = object;
   const { x: centerX, y: centerY } = blackHoleCenter;
@@ -761,4 +756,34 @@ function dieInsideBlackHole(player){
   const roomCode = lobbyDetails?.lobbyCode;
   player.health = 0;
   socket.emit('changePlayerHealth', { roomCode, playerId: socket.id, health: player.health});
+}
+
+
+function checkProximity(player, otherPlayers, sound) {
+  const proximityRadius = 500; // Distance to trigger sound (adjust as needed)
+  let isAnyPlayerNear = false;
+
+  otherPlayers.children.each(otherPlayer => {
+    if (otherPlayer.active && otherPlayer !== player) {
+      const distance = Phaser.Math.Distance.Between(
+        player.x,
+        player.y,
+        otherPlayer.x,
+        otherPlayer.y
+      );
+
+      if (distance <= proximityRadius) {
+        isAnyPlayerNear = true; // Mark that a player is nearby
+        if (!proximitySoundPlayed) {
+          sound.play(); // Play the proximity sound
+          proximitySoundPlayed = true; // Set the flag
+        }
+      }
+    }
+  });
+
+  // Reset the flag if no players are near
+  if (!isAnyPlayerNear) {
+    proximitySoundPlayed = false;
+  }
 }
