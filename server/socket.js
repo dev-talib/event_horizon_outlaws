@@ -217,10 +217,7 @@ module.exports = function(io) {
         });
 
         function checkWinner(lobbyCode) {
-            console.log("checkWinner");
-
             const lobby = lobbies[lobbyCode];
-            console.log("lobby players ===> ",lobby);
             if (!lobby || !lobby.players) {
                 console.log("Lobby not found or no players in the lobby.");
                 return;
@@ -229,7 +226,6 @@ module.exports = function(io) {
             const remainingPlayer = Object.values(lobby.players)
                 .map(player => lobby[player.socketId]) 
                 .find(player => player && player.health > 0);
-            console.log("Remaining player:", remainingPlayer);
 
             if (remainingPlayer) {
                 io.in(lobbyCode).emit('declareWinner', { player: remainingPlayer });
