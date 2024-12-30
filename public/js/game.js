@@ -195,7 +195,7 @@ function startGame(scene) {
   });
 
   sendAsteroidDataToServer(asteroidCount, mapWidth,mapHeight, roomName)
-  socket.emit('spawnPlayer', { playerName, roomName });
+  socket.emit('spawnPlayer', { playerName, roomName, mapWidth, mapHeight });
 
   socket.on('loadCurrentPlayers', (players) => {
     playerCount = players.players.length
@@ -558,15 +558,28 @@ function bulletHitPlayer(bullet, player) {
   }
 }
 
+
+// Function to generate asteroids data
 function generateRandomAsteroids(count, mapWidth, mapHeight) {
   const asteroidsData = [];
 
-  for (let i = 0; i < count; i++) {
-    const x = Math.random() * mapWidth; // Random X position across the entire map width
-    const y = Math.random() * mapHeight; // Random Y position across the entire map height
-    const scale = Math.random() * 0.5 + 0.1; // Random size between 0.1 and 0.6
+  const centerX = mapWidth / 2;
+  const centerY = mapHeight / 2;
 
-    asteroidsData.push({ x, y, scale });
+  const exclusionZone = 500; // No spawn within ±500 pixels of the center
+
+  for (let i = 0; i < count; i++) {
+      let x, y;
+      do {
+          x = Math.random() * mapWidth;
+          y = Math.random() * mapHeight;
+      } while (
+          Math.abs(x - centerX) < exclusionZone && 
+          Math.abs(y - centerY) < exclusionZone
+      );
+
+      const scale = Math.random() * 0.5 + 0.1; 
+      asteroidsData.push({ x, y, scale });
   }
 
   return asteroidsData;

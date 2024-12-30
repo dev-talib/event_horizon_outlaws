@@ -145,16 +145,25 @@ module.exports = function(io) {
             }
         });
         
-
-        socket.on('spawnPlayer', ({ playerName, roomName }) => {
+        socket.on('spawnPlayer', ({ playerName, roomName, mapWidth, mapHeight }) => {
             socket.join(roomName);
             if (!lobbies[roomName]) {
                 lobbies[roomName] = {};
             }
+            
+            const centerX = mapWidth / 2;
+            const centerY = mapHeight / 2;
         
-            // Ensure the initial position is within the bounds of the map
-            const initialX = Math.floor(Math.random() * 3200); // Adjust based on map size
-            const initialY = Math.floor(Math.random() * 3200); // Adjust based on map size
+            const exclusionZone = 500; // No spawn within ±500 pixels of the center
+        
+            let initialX, initialY;
+            do {
+                initialX = Math.random() * mapWidth;
+                initialY = Math.random() * mapHeight;
+            } while (
+                (Math.abs(initialX - centerX) < exclusionZone) ||  
+                (Math.abs(initialY - centerY) < exclusionZone)   
+            );
         
             lobbies[roomName][socket.id] = {
                 playerName,
@@ -162,13 +171,13 @@ module.exports = function(io) {
                 x: initialX,
                 y: initialY,
                 playerId: socket.id,
-                health: 200
+                health: 500
             };
         
             socket.emit('loadCurrentPlayers', lobbies[roomName]);
             socket.to(roomName).emit('spawnNewPlayerInstance', lobbies[roomName][socket.id]);
         });
-
+        
         
         socket.on('playerMovement', ({ roomName, x, y, rotation }) => {
             if (lobbies[roomName] && lobbies[roomName][socket.id]) {
@@ -213,7 +222,7 @@ module.exports = function(io) {
             if (roomCode && asteroidData && hostPlayer === socket.id) {
                 setTimeout(()=>{
                     io.in(roomCode).emit('spawnAsteroids', asteroidData);
-                },3000)
+                },2000)
             }
         });
 
