@@ -1,8 +1,8 @@
-# Event Horizon - 2D Battle Royale
+# Event Horizon outlaws - 2D Battle Royale
 
 ## Overview
 
-**Event Horizon** is a multiplayer 2D battle royale game where players navigate a vast space environment, engage in combat, and compete to be the last player standing. Inspired by classic shooters, the game combines fast-paced action with strategic gameplay elements, set against a visually stunning backdrop of space.
+**Event Horizon outlaws** is a multiplayer 2D battle royale game where players navigate a vast space environment, engage in combat, and compete to be the last player standing. Inspired by classic shooters, the game combines fast-paced action with strategic gameplay elements, set against a visually stunning backdrop of space.
 
 ## Features
 
@@ -45,7 +45,7 @@
 4. **Start the server**:    
     ```bash
     npm start
-5. **Open your browser and navigate to http://localhost:3000 to start playing!**
+5. **Open your browser and navigate to http://localhost:5000 to start playing!**
 
 ## How to Play
 
