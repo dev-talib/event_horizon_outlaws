@@ -73,13 +73,19 @@ function initApp() {
 // Run the app initialization
 initApp();
 
+let beforeUnloadListener;
+
+function preventWarningOnReload() {
+    // Temporarily remove the beforeunload event listener to prevent the warning
+    window.removeEventListener('beforeunload', beforeUnloadListener);
+}
+
 // Warning message for beforeunload
-window.addEventListener('beforeunload', function (event) {
+window.addEventListener('beforeunload', beforeUnloadListener = function(event) {
     const message = 'Refreshing the page will disconnect you from the game. Reconnection is not available yet!';
     event.returnValue = message;  // For most browsers
     handlePlayerDataAndRedirect();
     return message;  // For some older browsers
-   
 });
 
 // Disable F5 and Ctrl+R (refresh) using keydown event
@@ -92,8 +98,16 @@ window.addEventListener('keydown', function(event) {
     }
 });
 
-function handlePlayerDataAndRedirect(){
+function handlePlayerDataAndRedirect() {
     loadView('welcome');
     sessionStorage.removeItem('lobbyDetails');
     sessionStorage.removeItem('currentView');
+}
+
+function restartGame() {
+    // Prevent the warning message before reloading
+    preventWarningOnReload();
+    handlePlayerDataAndRedirect();
+    window.location.reload();  
+    // Reload the page to restart the game
 }
