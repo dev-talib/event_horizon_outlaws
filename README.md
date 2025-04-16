@@ -12,7 +12,6 @@
 - **Player Health System**: Manage health through gameplay; players can take damage and respawn.
 - **Map and Environment**: Explore a beautifully crafted space environment with various elements, including a black hole and dynamic stars.
 - **Mini-map**: Keep track of player locations and the safe zone with an integrated mini-map.
-- **View Whole Map**: Press **M** to toggle the view of the entire map for better navigation and strategy.
 - **Simple Controls**: Easy-to-learn controls for shooting, moving, and using power-ups.
 
 ## Technologies Used
